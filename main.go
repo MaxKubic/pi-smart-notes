@@ -112,7 +112,6 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newNote)
 }
 
-// Aktualizace existující poznámky / tabulky podle ID
 func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 4 {
@@ -140,6 +139,24 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// NOVOST: Mazání položky z databáze (DELETE /api/notes/ID)
+func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		http.Error(w, "Chybějící ID", http.StatusBadRequest)
+		return
+	}
+	id := parts[3]
+
+	_, err := db.Exec("DELETE FROM notes WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, "Chyba při mazání z databáze", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func main() {
 	initDB()
 	defer db.Close()
@@ -157,15 +174,17 @@ func main() {
 		}
 	})
 
-	// Endpoint pro úpravu stávající poznámky: PUT /api/notes/ID
+	// Endpoint pro úpravy (PUT) a mazání (DELETE) podle ID
 	http.HandleFunc("/api/notes/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPut || r.Method == http.MethodPost {
+		if r.Method == http.MethodPut {
 			updateNoteHandler(w, r)
+		} else if r.Method == http.MethodDelete {
+			deleteNoteHandler(w, r)
 		} else {
 			http.Error(w, "Neznámá metoda", http.StatusMethodNotAllowed)
 		}
 	})
 
-	fmt.Println("🚀 Server s podporou úprav běží na http://localhost:8080 ...")
+	fmt.Println("🚀 Server s podporou mazání běží na http://localhost:8080 ...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

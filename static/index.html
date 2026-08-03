@@ -103,21 +103,54 @@
                     } catch(e) {}
 
                     todosEl.innerHTML += `
-                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center gap-2 ${isActive}">
-                            📊 ${title}
+                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center justify-between group ${isActive}">
+                            <span class="truncate">📊 ${title}</span>
+                            <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-1 transition" title="Smazat">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
                         </div>`;
                 } else if (item.type === 'text') {
                     notesEl.innerHTML += `
-                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate ${isActive}">
-                            📝 ${item.content}
+                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center justify-between group ${isActive}">
+                            <span class="truncate">📝 ${item.content}</span>
+                            <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-1 transition" title="Smazat">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
                         </div>`;
                 } else if (item.type === 'drawing') {
                     sketchesEl.innerHTML += `
-                        <div onclick="openItem('${item.id}')" class="border border-slate-800 rounded-lg overflow-hidden cursor-pointer hover:border-pink-500/50 transition bg-white/5 h-20 flex items-center justify-center ${isActive}">
+                        <div onclick="openItem('${item.id}')" class="border border-slate-800 rounded-lg overflow-hidden cursor-pointer hover:border-pink-500/50 transition bg-white/5 h-20 flex items-center justify-center relative group ${isActive}">
                             <img src="${item.content}" class="max-h-full object-contain" />
+                            <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-slate-900/80 text-slate-400 hover:text-red-400 p-1 rounded transition" title="Smazat">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
                         </div>`;
                 }
             });
+        }
+
+        // MAZÁNÍ POLOŽKY
+        async function deleteItem(id) {
+            if (!confirm("Opravdu chceš tuto položku smazat?")) return;
+
+            try {
+                const res = await fetch('/api/notes/' + id, { method: 'DELETE' });
+                if (res.ok) {
+                    if (activeNoteId === id) {
+                        activeNoteId = null;
+                        document.getElementById('work-container').innerHTML = `
+                            <div class="text-center text-slate-600 space-y-3">
+                                <i data-lucide="layout-dashboard" class="w-16 h-16 mx-auto stroke-1"></i>
+                                <p class="text-sm font-medium">Položka byla smazána.</p>
+                            </div>`;
+                    }
+                    fetchAll();
+                } else {
+                    alert("Chyba při mazání z databáze.");
+                }
+            } catch (err) {
+                console.error("Chyba:", err);
+            }
         }
 
         function openItem(id) {
