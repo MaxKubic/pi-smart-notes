@@ -5,156 +5,405 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pi Smart Notes 🍓</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+<body class="bg-slate-950 text-slate-100 h-screen overflow-hidden font-sans">
 
-    <div class="max-w-4xl mx-auto space-y-6">
-        <!-- Hlavička -->
-        <header class="flex justify-between items-center border-b border-slate-800 pb-4">
-            <h1 class="text-2xl font-bold text-pink-500 flex items-center gap-2">
-                🍓 Pi Smart Notes
-            </h1>
-            <span class="text-xs bg-slate-800 px-3 py-1 rounded-full text-slate-400">RPi 4 Edition</span>
-        </header>
+    <div class="flex h-full">
 
-        <!-- Blok pro vytváření poznámky -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-lg border border-slate-700">
-            <!-- Přepínání záložek: Text vs Malování vs To-Do -->
-            <div class="flex flex-wrap gap-2 mb-4 border-b border-slate-700 pb-2">
-                <button id="tab-text-btn" onclick="switchTab('text')" class="px-4 py-1.5 rounded-lg bg-pink-600 font-medium text-sm">✍️ Text</button>
-                <button id="tab-todo-btn" onclick="switchTab('todo')" class="px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 font-medium text-sm hover:bg-slate-600">☑️ To-Do Úkol</button>
-                <button id="tab-draw-btn" onclick="switchTab('draw')" class="px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 font-medium text-sm hover:bg-slate-600">🎨 Malování</button>
-            </div>
-
-            <!-- Formát 1: Textový vstup -->
-            <div id="tab-text" class="space-y-3">
-                <textarea id="note-input" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-pink-500 placeholder-slate-500" placeholder="Napiš novou poznámku..."></textarea>
-                <button onclick="saveTextNote()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Uložit poznámku</button>
-            </div>
-
-            <!-- Formát 2: To-Do vstup -->
-            <div id="tab-todo" class="hidden space-y-3">
-                <input id="todo-input" type="text" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-pink-500 placeholder-slate-500" placeholder="Co je potřeba udělat? (např. Koupit mléko)..." />
-                <button onclick="saveTodoNote()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Přidat úkol</button>
-            </div>
-
-            <!-- Formát 3: Malování (Canvas) -->
-            <div id="tab-draw" class="hidden space-y-3">
-                <p class="text-xs text-slate-400">Nakresli nebo napiš cokoliv rukou/myší:</p>
-                <div class="border border-slate-700 rounded-lg overflow-hidden bg-white">
-                    <canvas id="paint-canvas" width="600" height="200" class="w-full touch-none cursor-crosshair"></canvas>
+        <!-- LEVÝ PANEL (SIDEBAR) -->
+        <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 flex-shrink-0">
+            <div class="space-y-6 overflow-y-auto pr-1">
+                
+                <!-- LOGO A NÁZEV -->
+                <div class="flex items-center gap-3 px-2 py-1">
+                    <div class="w-9 h-9 bg-pink-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-pink-500/20">🍓</div>
+                    <div>
+                        <h1 class="font-bold text-base leading-none text-slate-100">Pi Smart Notes</h1>
+                        <span class="text-[10px] text-pink-400 font-medium">Raspberry Pi OS</span>
+                    </div>
                 </div>
-                <div class="flex justify-between items-center">
-                    <button onclick="clearCanvas()" class="text-xs text-slate-400 hover:text-red-400">Vymazat plátno</button>
-                    <button onclick="saveDrawingNote()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Uložit kresbu</button>
-                </div>
-            </div>
-        </div>
 
-        <!-- Seznam poznámek a To-Do -->
-        <main>
-            <h2 class="text-lg font-semibold mb-4 text-slate-300">Moje Zápisky a Úkoly</h2>
-            <div id="notes-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Sem se načtou položky -->
+                <!-- SEKCE 1: TO-DO TABLES -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-slate-400 px-2">
+                        <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="table" class="w-4 h-4 text-pink-500"></i> To-Do Tabulky</span>
+                        <button onclick="createNew('todo_table')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Nová Tabulka"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    </div>
+                    <div id="sidebar-todos" class="space-y-1"></div>
+                </div>
+
+                <!-- SEKCE 2: NOTES -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-slate-400 px-2">
+                        <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="file-text" class="w-4 h-4 text-pink-500"></i> Poznámky</span>
+                        <button onclick="createNew('text')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Nová poznámka"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    </div>
+                    <div id="sidebar-notes" class="space-y-1"></div>
+                </div>
+
+                <!-- SEKCE 3: SKETCHES -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-slate-400 px-2">
+                        <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="palette" class="w-4 h-4 text-pink-500"></i> Kresby</span>
+                        <button onclick="createNew('drawing')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Nová kresba"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    </div>
+                    <div id="sidebar-sketches" class="grid grid-cols-2 gap-2 pt-1"></div>
+                </div>
+
+            </div>
+
+            <div class="border-t border-slate-800 pt-3 px-2 text-[11px] text-slate-500 flex justify-between items-center">
+                <span>System Status</span>
+                <span class="text-emerald-400 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Online</span>
+            </div>
+        </aside>
+
+        <!-- PRAVÁ PRACOVNÍ PLOCHA (OPENED WORK) -->
+        <main class="flex-1 bg-slate-950 p-6 overflow-y-auto flex flex-col justify-center items-center relative">
+            <div id="work-container" class="w-full max-w-5xl h-full flex flex-col justify-center items-center">
+                <div class="text-center text-slate-600 space-y-3">
+                    <i data-lucide="layout-dashboard" class="w-16 h-16 mx-auto stroke-1"></i>
+                    <p class="text-sm font-medium">Vyber věc z levého menu nebo vytvoř novou kliknutím na <span class="text-pink-500 font-bold">+</span></p>
+                </div>
             </div>
         </main>
+
     </div>
 
     <script>
-        let currentTab = 'text';
+        let allNotes = [];
+        let activeNoteId = null;
+        let currentTableData = { title: "Nová tabulka", rows: [] };
 
-        function switchTab(tab) {
-            currentTab = tab;
-            document.getElementById('tab-text').classList.toggle('hidden', tab !== 'text');
-            document.getElementById('tab-todo').classList.toggle('hidden', tab !== 'todo');
-            document.getElementById('tab-draw').classList.toggle('hidden', tab !== 'draw');
-
-            const activeClass = 'px-4 py-1.5 rounded-lg bg-pink-600 font-medium text-sm text-white';
-            const inactiveClass = 'px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 font-medium text-sm hover:bg-slate-600';
-
-            document.getElementById('tab-text-btn').className = tab === 'text' ? activeClass : inactiveClass;
-            document.getElementById('tab-todo-btn').className = tab === 'todo' ? activeClass : inactiveClass;
-            document.getElementById('tab-draw-btn').className = tab === 'draw' ? activeClass : inactiveClass;
-        }
-
-        async function fetchNotes() {
+        async function fetchAll() {
             const res = await fetch('/api/notes');
-            const notes = await res.json();
-            const container = document.getElementById('notes-list');
-            container.innerHTML = '';
+            allNotes = await res.json();
+            renderSidebar();
+            lucide.createIcons();
+        }
 
-            notes.forEach(note => {
-                const date = new Date(note.created_at).toLocaleString('cs-CZ');
-                const card = document.createElement('div');
-                card.className = "bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between shadow";
+        function renderSidebar() {
+            const todosEl = document.getElementById('sidebar-todos');
+            const notesEl = document.getElementById('sidebar-notes');
+            const sketchesEl = document.getElementById('sidebar-sketches');
 
-                let contentHtml = '';
+            todosEl.innerHTML = '';
+            notesEl.innerHTML = '';
+            sketchesEl.innerHTML = '';
 
-                if (note.type === 'drawing') {
-                    contentHtml = `<img src="${note.content}" class="w-full h-auto bg-white rounded border border-slate-600 my-2" />`;
-                } else if (note.type === 'todo') {
-                    const isDone = note.completed;
-                    contentHtml = `
-                        <div class="flex items-center gap-3 my-3 cursor-pointer" onclick="toggleTodo('${note.id}')">
-                            <input type="checkbox" ${isDone ? 'checked' : ''} class="w-5 h-5 accent-pink-500 cursor-pointer pointer-events-none" />
-                            <span class="text-sm font-medium ${isDone ? 'line-through text-slate-500' : 'text-slate-200'}">${note.content}</span>
-                        </div>
-                    `;
-                } else {
-                    contentHtml = `<p class="text-slate-200 text-sm whitespace-pre-wrap my-2">${note.content}</p>`;
+            allNotes.forEach(item => {
+                const isActive = item.id === activeNoteId ? 'bg-slate-800 text-pink-400 border-l-2 border-pink-500' : 'text-slate-300 hover:bg-slate-800/60';
+
+                if (item.type === 'todo_table') {
+                    let title = "Tabulka bez názvu";
+                    try {
+                        const parsed = JSON.parse(item.content);
+                        if (parsed.title) title = parsed.title;
+                    } catch(e) {}
+
+                    todosEl.innerHTML += `
+                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center gap-2 ${isActive}">
+                            📊 ${title}
+                        </div>`;
+                } else if (item.type === 'text') {
+                    notesEl.innerHTML += `
+                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate ${isActive}">
+                            📝 ${item.content}
+                        </div>`;
+                } else if (item.type === 'drawing') {
+                    sketchesEl.innerHTML += `
+                        <div onclick="openItem('${item.id}')" class="border border-slate-800 rounded-lg overflow-hidden cursor-pointer hover:border-pink-500/50 transition bg-white/5 h-20 flex items-center justify-center ${isActive}">
+                            <img src="${item.content}" class="max-h-full object-contain" />
+                        </div>`;
                 }
+            });
+        }
 
-                card.innerHTML = `
-                    <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-700/50 pb-2">
-                        <span class="font-bold text-pink-400">${note.type.toUpperCase()}</span>
-                        <span>${date}</span>
+        function openItem(id) {
+            activeNoteId = id;
+            renderSidebar();
+            const item = allNotes.find(n => n.id === id);
+            const container = document.getElementById('work-container');
+
+            if (!item) return;
+
+            if (item.type === 'todo_table') {
+                try {
+                    const parsed = JSON.parse(item.content);
+                    if (Array.isArray(parsed)) {
+                        currentTableData = { title: "Uložená tabulka", rows: parsed };
+                    } else {
+                        currentTableData = parsed;
+                    }
+                } catch(e) {
+                    currentTableData = { title: "Chybná tabulka", rows: [] };
+                }
+                renderTableView(container, item.id);
+            } else if (item.type === 'drawing') {
+                container.innerHTML = `
+                    <div class="w-full h-full flex flex-col space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <span class="text-xs text-pink-400 font-bold uppercase">Detail Kresby</span>
+                            <span class="text-xs text-slate-500">${new Date(item.created_at).toLocaleString('cs-CZ')}</span>
+                        </div>
+                        <div class="flex-1 bg-white rounded-2xl flex items-center justify-center p-4 overflow-hidden border border-slate-800 shadow-2xl">
+                            <img src="${item.content}" class="max-w-full max-h-full object-contain" />
+                        </div>
+                    </div>`;
+            } else if (item.type === 'text') {
+                container.innerHTML = `
+                    <div class="w-full h-full flex flex-col space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <span class="text-xs text-pink-400 font-bold uppercase">Textová poznámka</span>
+                            <span class="text-xs text-slate-500">${new Date(item.created_at).toLocaleString('cs-CZ')}</span>
+                        </div>
+                        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-200 text-lg leading-relaxed whitespace-pre-wrap overflow-y-auto">
+                            ${item.content}
+                        </div>
+                    </div>`;
+            }
+            lucide.createIcons();
+        }
+
+        function renderTableView(container, tableId = null) {
+            let rowsHtml = currentTableData.rows.map((row, idx) => `
+                <tr class="table-row-item border-b border-slate-800 hover:bg-slate-900/50">
+                    <td class="p-3 text-center">
+                        <input type="checkbox" ${row.done ? 'checked' : ''} class="row-done w-4 h-4 accent-pink-500 rounded cursor-pointer" />
+                    </td>
+                    <td class="p-3">
+                        <input type="text" value="${row.title || ''}" placeholder="Název úkolu..." class="row-title w-full bg-transparent text-sm focus:outline-none focus:border-b focus:border-pink-500 ${row.done ? 'line-through text-slate-500' : 'text-slate-200'}" />
+                    </td>
+                    <td class="p-3">
+                        <input type="date" value="${row.date || ''}" class="row-date bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-pink-500" />
+                    </td>
+                    <td class="p-3">
+                        <input type="text" value="${row.tag || ''}" placeholder="Popisek / Tag" class="row-tag w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-pink-500" />
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="removeRow(${idx}, ${tableId ? `'${tableId}'` : 'null'})" class="text-slate-600 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            const isEditing = tableId !== null;
+
+            container.innerHTML = `
+                <div class="w-full h-full flex flex-col space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2 flex-1 max-w-md">
+                            <i data-lucide="table" class="text-pink-500 w-5 h-5 flex-shrink-0"></i>
+                            <input type="text" id="table-title-input" value="${currentTableData.title || ''}" placeholder="Pojmenuj tabulku..." class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-base font-bold text-slate-100 focus:outline-none focus:border-pink-500 w-full" />
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="addRow(${isEditing ? `'${tableId}'` : 'null'})" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Přidat řádek</button>
+                            ${!isEditing 
+                                ? `<button onclick="saveNewTable()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition">Uložit Novou Tabulku</button>` 
+                                : `<button onclick="updateExistingTable('${tableId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit Změny</button>`
+                            }
+                        </div>
                     </div>
-                    ${contentHtml}
-                `;
-                container.appendChild(card);
-            });
+
+                    <div class="flex-1 overflow-x-auto border border-slate-800 rounded-2xl bg-slate-900/40">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-800 bg-slate-900 text-slate-400 text-xs font-semibold uppercase">
+                                    <th class="p-3 w-12 text-center">Stav</th>
+                                    <th class="p-3">Úkol / Popis</th>
+                                    <th class="p-3 w-40">Termín</th>
+                                    <th class="p-3 w-44">Kategorie / Tag</th>
+                                    <th class="p-3 w-12 text-center"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml.length > 0 ? rowsHtml : `<tr><td colspan="5" class="p-8 text-center text-slate-600 text-sm">Žádné úkoly. Klikni na "+ Přidat řádek"</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            lucide.createIcons();
         }
 
-        async function saveTextNote() {
-            const text = document.getElementById('note-input').value;
-            if (!text.trim()) return;
+        function addRow(tableId = null) {
+            collectTableDataFromDOM();
+            currentTableData.rows.push({ title: '', done: false, date: '', tag: '' });
+            const container = document.getElementById('work-container');
+            renderTableView(container, tableId);
+        }
+
+        function removeRow(idx, tableId = null) {
+            collectTableDataFromDOM();
+            currentTableData.rows.splice(idx, 1);
+            const container = document.getElementById('work-container');
+            renderTableView(container, tableId);
+        }
+
+        function collectTableDataFromDOM() {
+            const titleInput = document.getElementById('table-title-input');
+            if (titleInput && titleInput.value.trim()) {
+                currentTableData.title = titleInput.value.trim();
+            } else if (!currentTableData.title) {
+                currentTableData.title = "Nová tabulka";
+            }
+
+            const rowElements = document.querySelectorAll('.table-row-item');
+            const updatedRows = [];
+
+            rowElements.forEach(tr => {
+                const doneInput = tr.querySelector('.row-done');
+                const titleInput = tr.querySelector('.row-title');
+                const dateInput = tr.querySelector('.row-date');
+                const tagInput = tr.querySelector('.row-tag');
+
+                updatedRows.push({
+                    done: doneInput ? doneInput.checked : false,
+                    title: titleInput ? titleInput.value : '',
+                    date: dateInput ? dateInput.value : '',
+                    tag: tagInput ? tagInput.value : ''
+                });
+            });
+
+            currentTableData.rows = updatedRows;
+            return currentTableData;
+        }
+
+        async function saveNewTable() {
+            collectTableDataFromDOM();
+
+            if (!currentTableData.rows || currentTableData.rows.length === 0) {
+                alert("Tabulka je prázdná! Přidej alespoň jeden řádek.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        content: JSON.stringify(currentTableData), 
+                        type: 'todo_table' 
+                    })
+                });
+
+                if (res.ok) {
+                    await fetchAll();
+                    document.getElementById('work-container').innerHTML = `
+                        <div class="text-center text-slate-500 space-y-2">
+                            <i data-lucide="check-circle-2" class="w-12 h-12 text-emerald-500 mx-auto"></i>
+                            <p class="text-sm font-medium">Tabulka "${currentTableData.title}" byla úspěšně uložena!</p>
+                        </div>`;
+                    lucide.createIcons();
+                } else {
+                    alert("Chyba při ukládání na server.");
+                }
+            } catch (err) {
+                console.error("Chyba:", err);
+                alert("Nepodařilo se spojit se serverem.");
+            }
+        }
+
+        async function updateExistingTable(tableId) {
+            collectTableDataFromDOM();
+
+            try {
+                const res = await fetch('/api/notes/' + tableId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        content: JSON.stringify(currentTableData) 
+                    })
+                });
+
+                if (res.ok) {
+                    await fetchAll();
+                    openItem(tableId);
+                } else {
+                    alert("Chyba při aktualizaci tabulky.");
+                }
+            } catch (err) {
+                console.error("Chyba:", err);
+            }
+        }
+
+        function createNew(type) {
+            activeNoteId = null;
+            renderSidebar();
+            const container = document.getElementById('work-container');
+
+            if (type === 'todo_table') {
+                currentTableData = {
+                    title: "Nová tabulka",
+                    rows: [
+                        { title: '', done: false, date: new Date().toISOString().split('T')[0], tag: '' }
+                    ]
+                };
+                renderTableView(container, null);
+            } else if (type === 'text') {
+                container.innerHTML = `
+                    <div class="w-full h-full flex flex-col space-y-4">
+                        <h2 class="text-lg font-bold text-slate-200">Nová Textová Poznámka</h2>
+                        <textarea id="new-text" class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-slate-100 focus:outline-none focus:border-pink-500 text-base" placeholder="Zde začni psát..."></textarea>
+                        <div class="flex justify-end">
+                            <button onclick="saveNote('text')" class="bg-pink-600 hover:bg-pink-500 font-semibold px-6 py-2.5 rounded-xl text-sm transition">Uložit poznámku</button>
+                        </div>
+                    </div>`;
+            } else if (type === 'drawing') {
+                container.innerHTML = `
+                    <div class="w-full h-full flex flex-col space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-lg font-bold text-slate-200">Kreslící Plátno</h2>
+                            <button onclick="clearCanvas()" class="text-xs text-slate-400 hover:text-red-400">Vymazat</button>
+                        </div>
+                        <div class="flex-1 bg-white rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
+                            <canvas id="paint-canvas" class="w-full h-full touch-none cursor-crosshair"></canvas>
+                        </div>
+                        <div class="flex justify-end">
+                            <button onclick="saveDrawing()" class="bg-pink-600 hover:bg-pink-500 font-semibold px-6 py-2.5 rounded-xl text-sm transition">Uložit kresbu</button>
+                        </div>
+                    </div>`;
+                initCanvas();
+            }
+            lucide.createIcons();
+        }
+
+        async function saveNote(type) {
+            let content = document.getElementById('new-text').value;
+            if (!content.trim()) return;
+
             await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: text, type: 'text' })
+                body: JSON.stringify({ content, type })
             });
-            document.getElementById('note-input').value = '';
-            fetchNotes();
+            fetchAll();
+            document.getElementById('work-container').innerHTML = `<div class="text-center text-slate-600"><p>Uloženo!</p></div>`;
         }
 
-        async function saveTodoNote() {
-            const text = document.getElementById('todo-input').value;
-            if (!text.trim()) return;
-            await fetch('/api/notes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: text, type: 'todo' })
-            });
-            document.getElementById('todo-input').value = '';
-            fetchNotes();
+        // Kreslení
+        let canvas, ctx, painting = false;
+
+        function initCanvas() {
+            canvas = document.getElementById('paint-canvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000000';
+
+            const start = (e) => { painting = true; draw(e); };
+            const stop = () => { painting = false; ctx.beginPath(); };
+
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mouseup', stop);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('touchstart', start);
+            canvas.addEventListener('touchend', stop);
+            canvas.addEventListener('touchmove', draw);
         }
 
-        async function toggleTodo(id) {
-            await fetch('/api/notes/toggle/' + id, { method: 'POST' });
-            fetchNotes();
-        }
-
-        // Canvas / Malování
-        const canvas = document.getElementById('paint-canvas');
-        const ctx = canvas.getContext('2d');
-        let painting = false;
-
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000000';
-
-        function startPosition(e) { painting = true; draw(e); }
-        function finishedPosition() { painting = false; ctx.beginPath(); }
         function draw(e) {
             if (!painting) return;
             const rect = canvas.getBoundingClientRect();
@@ -167,27 +416,20 @@
             ctx.moveTo(x, y);
         }
 
-        canvas.addEventListener('mousedown', startPosition);
-        canvas.addEventListener('mouseup', finishedPosition);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('touchstart', startPosition);
-        canvas.addEventListener('touchend', finishedPosition);
-        canvas.addEventListener('touchmove', draw);
-
         function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
 
-        async function saveDrawingNote() {
+        async function saveDrawing() {
             const dataURL = canvas.toDataURL();
             await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: dataURL, type: 'drawing' })
             });
-            clearCanvas();
-            fetchNotes();
+            fetchAll();
+            document.getElementById('work-container').innerHTML = `<div class="text-center text-slate-600"><p>Kresba uložena!</p></div>`;
         }
 
-        fetchNotes();
+        fetchAll();
     </script>
 </body>
 </html>

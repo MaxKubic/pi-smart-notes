@@ -16,7 +16,7 @@ import (
 type Note struct {
 	ID        string    `json:"id"`
 	Content   string    `json:"content"`
-	Type      string    `json:"type"` // "text", "drawing", "todo"
+	Type      string    `json:"type"`
 	Completed bool      `json:"completed"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -30,7 +30,6 @@ func initDB() {
 		log.Fatal("Chyba při otevírání databáze:", err)
 	}
 
-	// Přidán sloupec completed pro To-Do úlohy
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
 		"id" TEXT PRIMARY KEY,
 		"content" TEXT,
@@ -113,19 +112,28 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newNote)
 }
 
-// Přepínání stavu splněno/nesplněno u To-Do úkolu
-func toggleTodoHandler(w http.ResponseWriter, r *http.Request) {
-	// Získáme ID z URL adresy (např. /api/notes/toggle/ID)
+// Aktualizace existující poznámky / tabulky podle ID
+func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 {
+	if len(parts) < 4 {
 		http.Error(w, "Chybějící ID", http.StatusBadRequest)
 		return
 	}
-	id := parts[4]
+	id := parts[3]
 
-	_, err := db.Exec("UPDATE notes SET completed = NOT completed WHERE id = ?", id)
+	var input struct {
+		Content string `json:"content"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil || input.Content == "" {
+		http.Error(w, "Špatný formát dat", http.StatusBadRequest)
+		return
+	}
+
+	_, err = db.Exec("UPDATE notes SET content = ? WHERE id = ?", input.Content, id)
 	if err != nil {
-		http.Error(w, "Chyba při aktualizaci stavu", http.StatusInternalServerError)
+		http.Error(w, "Chyba při aktualizaci databáze", http.StatusInternalServerError)
 		return
 	}
 
@@ -149,15 +157,15 @@ func main() {
 		}
 	})
 
-	// Endpoint pro přepínání splnění úkolu
-	http.HandleFunc("/api/notes/toggle/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPatch || r.Method == http.MethodPost {
-			toggleTodoHandler(w, r)
+	// Endpoint pro úpravu stávající poznámky: PUT /api/notes/ID
+	http.HandleFunc("/api/notes/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut || r.Method == http.MethodPost {
+			updateNoteHandler(w, r)
 		} else {
 			http.Error(w, "Neznámá metoda", http.StatusMethodNotAllowed)
 		}
 	})
 
-	fmt.Println("🚀 Server běží na http://localhost:8080 ...")
+	fmt.Println("🚀 Server s podporou úprav běží na http://localhost:8080 ...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
