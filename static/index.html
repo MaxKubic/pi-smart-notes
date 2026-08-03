@@ -157,63 +157,53 @@
             }
         }
 
-        // ---------- AUDIO PŘEPIS (WHISPER) ----------
+                // ---------- AUDIO PŘEPIS (WHISPER S PŘEKRÝVÁNÍM) ----------
         let isRecording = false;
         let mediaRecorder;
         let audioChunks = [];
         let liveNoteId = null;
         let recordingStream = null;
+        let recordingInterval = null;
 
         async function startRecording() {
             try {
                 recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 isRecording = true;
                 liveNoteId = null; 
+                audioChunks = [];
 
                 document.getElementById('recording-dot').classList.remove('hidden');
                 document.getElementById('btn-start-record').classList.add('hidden');
                 document.getElementById('btn-stop-record').classList.remove('hidden');
-                document.getElementById('live-transcript-box').innerHTML = "<span class='text-slate-500 animate-pulse'>Nahrávám a čekám na první slova (zobrazí se po cca 10 vteřinách)...</span>\n";
+                document.getElementById('live-transcript-box').innerHTML = "<span class='text-slate-500 animate-pulse'>Nahrávám a zpracovávám přepis (první slova se zobrazí za cca 10 vteřin)...</span>\n";
 
-                recordNextChunk();
+                // Nastavíme MediaRecorder tak, aby sbíral data každou sekundu
+                mediaRecorder = new MediaRecorder(recordingStream, { mimeType: 'audio/webm' });
+
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.start(1000); // Generuje chunk každou vteřinu
+
+                // Každých 10 sekund pošleme souvislý zvuk do backendu
+                recordingInterval = setInterval(async () => {
+                    if (!isRecording || audioChunks.length === 0) return;
+
+                    // Vytvoříme souvislý Blob ze sebraných dat
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await sendAudioChunk(audioBlob);
+
+                    // PŘEKRÝVÁNÍ (OVERLAP):
+                    // Ponecháme si v poli data za posledních 5 sekund pro plynulou návaznost slov a věta se nepostříhá napůl
+                    if (audioChunks.length > 5) {
+                        audioChunks = audioChunks.slice(-5);
+                    }
+                }, 10000);
+
             } catch (err) {
                 alert("Nepodařilo se připojit mikrofón. Zkontroluj oprávnění prohlížeče.");
             }
-        }
-
-        function recordNextChunk() {
-            if (!isRecording) {
-                if (recordingStream) recordingStream.getTracks().forEach(t => t.stop());
-                return;
-            }
-
-            mediaRecorder = new MediaRecorder(recordingStream);
-            audioChunks = [];
-
-            mediaRecorder.ondataavailable = e => {
-                if (e.data.size > 0) audioChunks.push(e.data);
-            };
-
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                await sendAudioChunk(audioBlob);
-
-                // Hned spustíme další chunk (nekonečná smyčka dokud nestiskneme Stop)
-                if (isRecording) {
-                    recordNextChunk();
-                } else {
-                    if (recordingStream) recordingStream.getTracks().forEach(t => t.stop());
-                }
-            };
-
-            mediaRecorder.start();
-
-            // Každých 10 sekund se recorder zastaví, pošle data a spustí znova
-            setTimeout(() => {
-                if (mediaRecorder.state !== "inactive") {
-                    mediaRecorder.stop();
-                }
-            }, 10000); 
         }
 
         async function sendAudioChunk(blob) {
@@ -227,9 +217,9 @@
                 const res = await fetch('/api/upload-audio-chunk', { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
-                    liveNoteId = data.id; // Zapamatujeme si ID, ať se to pořád lepí na sebe
+                    liveNoteId = data.id; // Zapamatujeme si ID, ať se to pořád připojuje na konec
                     const box = document.getElementById('live-transcript-box');
-                    if (box) {
+                    if (box && data.content) {
                         box.innerHTML = data.content.replace(/\n/g, '<br><br>');
                         box.scrollTop = box.scrollHeight; // Automatický scroll dolů
                     }
@@ -242,12 +232,18 @@
 
         function stopRecording() {
             isRecording = false;
+            clearInterval(recordingInterval);
+
             document.getElementById('recording-dot').classList.add('hidden');
             document.getElementById('btn-start-record').classList.remove('hidden');
             document.getElementById('btn-stop-record').classList.add('hidden');
             
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
-                mediaRecorder.stop(); // Vyvolá odeslání posledního kousku
+                mediaRecorder.stop();
+            }
+
+            if (recordingStream) {
+                recordingStream.getTracks().forEach(track => track.stop());
             }
         }
         // ---------- KONEC AUDIO LOGIKY ----------
@@ -270,7 +266,6 @@
                 }
                 renderTableView(container, item.id);
             } else if (item.type === 'drawing') {
-                // ... (stejný kód jako v předchozí verzi)
                 container.innerHTML = `
                     <div class="w-full h-full flex flex-col space-y-4">
                         <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -296,7 +291,6 @@
             lucide.createIcons();
         }
 
-        // Tady přidáme novou možnost "audio" do funkce createNew()
         function createNew(type) {
             activeNoteId = null;
             renderSidebar();
@@ -324,11 +318,9 @@
                         </div>
                     </div>`;
             } else if (type === 'todo_table') {
-                // (původní kod)
                 currentTableData = { title: "Nová tabulka", rows: [{ title: '', done: false, date: '', tag: '' }] };
                 renderTableView(container, null);
             } else if (type === 'text') {
-                // (původní kod)
                 container.innerHTML = `
                     <div class="w-full h-full flex flex-col space-y-4">
                         <h2 class="text-lg font-bold text-slate-200">Nová Textová Poznámka</h2>
@@ -338,7 +330,6 @@
                         </div>
                     </div>`;
             } else if (type === 'drawing') {
-                // (původní kod)
                 container.innerHTML = `
                     <div class="w-full h-full flex flex-col space-y-4">
                         <div class="flex justify-between items-center">
@@ -357,7 +348,6 @@
             lucide.createIcons();
         }
 
-        // --- ZDE JE ZBYTEK PŮVODNÍCH FUNKCÍ (renderTableView, saveNote, atd.) ---
         function renderTableView(container, tableId = null) {
             let rowsHtml = currentTableData.rows.map((row, idx) => `
                 <tr class="table-row-item border-b border-slate-800 hover:bg-slate-900/50">

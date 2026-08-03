@@ -192,7 +192,8 @@ func uploadAudioChunkHandler(w http.ResponseWriter, r *http.Request) {
 	ffmpegCmd.Run()
 
 	// 3. Spustíme Whisper CLI s NOVOU CESTOU k binárce
-	cmd := exec.Command("./whisper/build/bin/whisper-cli", "-m", "./whisper/models/ggml-base.bin", "-f", wavAudioPath, "-l", "cs", "-nt")
+	cmd := exec.Command("./whisper/build/bin/whisper-cli", "-m", "./whisper/models/ggml-small.bin", "-f", wavAudioPath, "-l", "cs", "-nt", "--temperature", "0.0")
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
