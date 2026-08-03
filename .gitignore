@@ -1,7 +1,11 @@
-# Databáze
+# Ignorovat databázi a dočasné audio soubory
 *.db
-*.db-journal
+notes.db
+temp_*
 
-# Binární soubory
-*.exe
-/backend
+# Ignorovat zkompilovaný whisper a modely (každé zařízení si zkompiluje vlastní)
+whisper/
+
+# Ignorovat zkompilované Go binárky
+main
+backend
