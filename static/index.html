@@ -30,7 +30,6 @@
                         <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4 text-red-500"></i> Hlasové Záznamy</span>
                         <button onclick="createNew('audio')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-red-400 transition" title="Nová nahrávka"><i data-lucide="plus" class="w-4 h-4"></i></button>
                     </div>
-                    <!-- Audio poznámky se v DB ukládají jako 'text', takže se objeví v sekci poznámek, což je ideální! -->
                 </div>
 
                 <!-- SEKCE 2: TO-DO TABLES -->
@@ -114,13 +113,12 @@
                             </button>
                         </div>`;
                 } else if (item.type === 'text') {
-                    // Odlišíme ikonkou, jestli je to přepis, nebo obyč text
                     const isAudio = item.content.includes("🎙️");
                     const icon = isAudio ? "🎙️" : "📝";
                     
                     notesEl.innerHTML += `
                         <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center justify-between group ${isActive}">
-                            <span class="truncate">${icon} ${item.content.replace("🎙️ Záznam přednášky / meetingu:", "").trim()}</span>
+                            <span class="truncate">${icon} ${item.content.replace("🎙️ Záznam:", "").trim()}</span>
                             <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-1 transition">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
@@ -157,87 +155,55 @@
             }
         }
 
-                // ---------- AUDIO PŘEPIS (WHISPER S PŘEKRÝVÁNÍM) ----------
-        let isRecording = false;
+              // ---------- AUDIO PŘEPIS (JEDNODUCHÝ PŘEPIS PO DOKONČENÍ) ----------
         let mediaRecorder;
         let audioChunks = [];
-        let liveNoteId = null;
         let recordingStream = null;
-        let recordingInterval = null;
 
         async function startRecording() {
             try {
                 recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                isRecording = true;
-                liveNoteId = null; 
                 audioChunks = [];
 
                 document.getElementById('recording-dot').classList.remove('hidden');
                 document.getElementById('btn-start-record').classList.add('hidden');
                 document.getElementById('btn-stop-record').classList.remove('hidden');
-                document.getElementById('live-transcript-box').innerHTML = "<span class='text-slate-500 animate-pulse'>Nahrávám a zpracovávám přepis (první slova se zobrazí za cca 10 vteřin)...</span>\n";
+                document.getElementById('live-transcript-box').innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-red-400 animate-pulse space-y-2">
+                        <i data-lucide="mic" class="w-12 h-12"></i>
+                        <p class="font-bold">Probíhá nahrávání zvuku...</p>
+                        <p class="text-xs text-slate-400">Až domluvíš, klikni na "Ukončit záznam" pro převod na text.</p>
+                    </div>`;
+                lucide.createIcons();
 
-                // Nastavíme MediaRecorder tak, aby sbíral data každou sekundu
                 mediaRecorder = new MediaRecorder(recordingStream, { mimeType: 'audio/webm' });
 
                 mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) audioChunks.push(e.data);
                 };
 
-                mediaRecorder.start(1000); // Generuje chunk každou vteřinu
-
-                // Každých 10 sekund pošleme souvislý zvuk do backendu
-                recordingInterval = setInterval(async () => {
-                    if (!isRecording || audioChunks.length === 0) return;
-
-                    // Vytvoříme souvislý Blob ze sebraných dat
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    await sendAudioChunk(audioBlob);
-
-                    // PŘEKRÝVÁNÍ (OVERLAP):
-                    // Ponecháme si v poli data za posledních 5 sekund pro plynulou návaznost slov a věta se nepostříhá napůl
-                    if (audioChunks.length > 5) {
-                        audioChunks = audioChunks.slice(-5);
-                    }
-                }, 10000);
-
+                mediaRecorder.start();
             } catch (err) {
-                alert("Nepodařilo se připojit mikrofón. Zkontroluj oprávnění prohlížeče.");
+                alert("Nepodařilo se připojit mikrofon. Zkontroluj oprávnění prohlížeče.");
             }
         }
 
-        async function sendAudioChunk(blob) {
-            const formData = new FormData();
-            formData.append('audio', blob, 'chunk.webm');
-            if (liveNoteId) {
-                formData.append('note_id', liveNoteId);
-            }
-
-            try {
-                const res = await fetch('/api/upload-audio-chunk', { method: 'POST', body: formData });
-                if (res.ok) {
-                    const data = await res.json();
-                    liveNoteId = data.id; // Zapamatujeme si ID, ať se to pořád připojuje na konec
-                    const box = document.getElementById('live-transcript-box');
-                    if (box && data.content) {
-                        box.innerHTML = data.content.replace(/\n/g, '<br><br>');
-                        box.scrollTop = box.scrollHeight; // Automatický scroll dolů
-                    }
-                    fetchAll(); 
-                }
-            } catch (err) {
-                console.error("Chyba při odesílání chunku:", err);
-            }
-        }
-
-        function stopRecording() {
-            isRecording = false;
-            clearInterval(recordingInterval);
-
+        async function stopRecording() {
             document.getElementById('recording-dot').classList.add('hidden');
             document.getElementById('btn-start-record').classList.remove('hidden');
             document.getElementById('btn-stop-record').classList.add('hidden');
-            
+
+            const box = document.getElementById('live-transcript-box');
+            if (box) {
+                box.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-pink-400 animate-pulse space-y-2">
+                        <i data-lucide="loader-2" class="w-12 h-12 animate-spin"></i>
+                        <p class="font-bold">Probíhá převod řeči na text přes Whisper...</p>
+                        <p class="text-xs text-slate-400">Trvá to jen chvilku podle délky nahrávky.</p>
+                    </div>`;
+                lucide.createIcons();
+            }
+
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
                 mediaRecorder.stop();
             }
@@ -245,6 +211,28 @@
             if (recordingStream) {
                 recordingStream.getTracks().forEach(track => track.stop());
             }
+
+            // Až se nahrávání definitivně zastaví, odešleme kompletní zvuk
+            setTimeout(async () => {
+                const fullAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('audio', fullAudioBlob, 'recording.webm');
+
+                try {
+                    const res = await fetch('/api/upload-audio-chunk', { method: 'POST', body: formData });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (box && data.content) {
+                            box.innerHTML = data.content.replace(/\n/g, '<br><br>');
+                            box.scrollTop = box.scrollHeight;
+                        }
+                        fetchAll(); // Obnoví seznam v levém sidebar menu
+                    }
+                } catch (err) {
+                    console.error("Chyba při odesílání audia:", err);
+                    if (box) box.innerText = "Při zpracování zvuku došlo k chybě.";
+                }
+            }, 500);
         }
         // ---------- KONEC AUDIO LOGIKY ----------
 

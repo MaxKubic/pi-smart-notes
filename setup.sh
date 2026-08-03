@@ -29,9 +29,9 @@ cd whisper
 make -j4
 
 # 3. Stažení českého modelu
-if [ ! -f "models/ggml-small.bin" ]; then
-    echo "📥 Stahuji český model 'small'..."
-    bash ./models/download-ggml-model.sh small
+if [ ! -f "models/ggml-medium.bin" ]; then
+    echo "📥 Stahuji český model 'medium'..."
+    bash ../models/download-ggml-model.sh medium
 fi
 
 cd ..
