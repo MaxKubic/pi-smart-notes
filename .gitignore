@@ -1,0 +1,7 @@
+# Databáze
+*.db
+*.db-journal
+
+# Binární soubory
+*.exe
+/backend

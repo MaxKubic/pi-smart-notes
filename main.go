@@ -6,23 +6,23 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	_ "github.com/glebarez/go-sqlite"
 	"github.com/google/uuid"
 )
 
-// Note definuje strukturu jedné poznámky
 type Note struct {
 	ID        string    `json:"id"`
 	Content   string    `json:"content"`
-	Type      string    `json:"type"`
+	Type      string    `json:"type"` // "text", "drawing", "todo"
+	Completed bool      `json:"completed"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 var db *sql.DB
 
-// initDB inicializuje SQLite databázi a vytvoří tabulku, pokud neexistuje
 func initDB() {
 	var err error
 	db, err = sql.Open("sqlite", "./notes.db")
@@ -30,10 +30,12 @@ func initDB() {
 		log.Fatal("Chyba při otevírání databáze:", err)
 	}
 
+	// Přidán sloupec completed pro To-Do úlohy
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
 		"id" TEXT PRIMARY KEY,
 		"content" TEXT,
 		"type" TEXT,
+		"completed" BOOLEAN DEFAULT 0,
 		"created_at" DATETIME
 	);`
 
@@ -45,11 +47,10 @@ func initDB() {
 	fmt.Println("💾 Databáze je připravena!")
 }
 
-// getNotesHandler vrátí všechny poznámky seřazené od nejnovější
 func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	rows, err := db.Query("SELECT id, content, type, created_at FROM notes ORDER BY created_at DESC")
+	rows, err := db.Query("SELECT id, content, type, completed, created_at FROM notes ORDER BY created_at DESC")
 	if err != nil {
 		http.Error(w, "Chyba při čtení z databáze", http.StatusInternalServerError)
 		return
@@ -60,9 +61,8 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var n Note
-		err := rows.Scan(&n.ID, &n.Content, &n.Type, &n.CreatedAt)
+		err := rows.Scan(&n.ID, &n.Content, &n.Type, &n.Completed, &n.CreatedAt)
 		if err != nil {
-			fmt.Println("Chyba při skenování řádku:", err)
 			continue
 		}
 		notes = append(notes, n)
@@ -71,13 +71,7 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(notes)
 }
 
-// createNoteHandler vytvoří novou poznámku s automatickým UUID a časem
 func createNoteHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Metoda není povolená", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var input struct {
 		Content string `json:"content"`
 		Type    string `json:"type"`
@@ -93,6 +87,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		ID:        uuid.New().String(),
 		Content:   input.Content,
 		Type:      input.Type,
+		Completed: false,
 		CreatedAt: time.Now(),
 	}
 
@@ -100,14 +95,14 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		newNote.Type = "text"
 	}
 
-	stmt, err := db.Prepare("INSERT INTO notes(id, content, type, created_at) VALUES(?, ?, ?, ?)")
+	stmt, err := db.Prepare("INSERT INTO notes(id, content, type, completed, created_at) VALUES(?, ?, ?, ?, ?)")
 	if err != nil {
 		http.Error(w, "Chyba při přípravě dotazu", http.StatusInternalServerError)
 		return
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(newNote.ID, newNote.Content, newNote.Type, newNote.CreatedAt)
+	_, err = stmt.Exec(newNote.ID, newNote.Content, newNote.Type, newNote.Completed, newNote.CreatedAt)
 	if err != nil {
 		http.Error(w, "Chyba při zápisu do databáze", http.StatusInternalServerError)
 		return
@@ -118,15 +113,46 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newNote)
 }
 
+// Přepínání stavu splněno/nesplněno u To-Do úkolu
+func toggleTodoHandler(w http.ResponseWriter, r *http.Request) {
+	// Získáme ID z URL adresy (např. /api/notes/toggle/ID)
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 5 {
+		http.Error(w, "Chybějící ID", http.StatusBadRequest)
+		return
+	}
+	id := parts[4]
+
+	_, err := db.Exec("UPDATE notes SET completed = NOT completed WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, "Chyba při aktualizaci stavu", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func main() {
 	initDB()
 	defer db.Close()
+
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/", fs)
 
 	http.HandleFunc("/api/notes", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			getNotesHandler(w, r)
 		} else if r.Method == http.MethodPost {
 			createNoteHandler(w, r)
+		} else {
+			http.Error(w, "Neznámá metoda", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Endpoint pro přepínání splnění úkolu
+	http.HandleFunc("/api/notes/toggle/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch || r.Method == http.MethodPost {
+			toggleTodoHandler(w, r)
 		} else {
 			http.Error(w, "Neznámá metoda", http.StatusMethodNotAllowed)
 		}
