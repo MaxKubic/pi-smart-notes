@@ -41,11 +41,14 @@
                     <div id="sidebar-todos" class="space-y-1"></div>
                 </div>
 
-                <!-- SEKCE 3: NOTES -->
+                <!-- SEKCE 3: NOTES + OCR CAMERA BUTTON -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between text-slate-400 px-2">
                         <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="file-text" class="w-4 h-4 text-pink-500"></i> Poznámky a Přepisy</span>
-                        <button onclick="createNew('text')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Nová poznámka"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                        <div class="flex gap-1">
+                            <button onclick="createNew('ocr')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Skenovat fotku / OCR"><i data-lucide="camera" class="w-4 h-4"></i></button>
+                            <button onclick="createNew('text')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Nová poznámka"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                        </div>
                     </div>
                     <div id="sidebar-notes" class="space-y-1"></div>
                 </div>
@@ -114,11 +117,14 @@
                         </div>`;
                 } else if (item.type === 'text') {
                     const isAudio = item.content.includes("🎙️");
-                    const icon = isAudio ? "🎙️" : "📝";
+                    const isOCR = item.content.includes("📷");
+                    let icon = "📝";
+                    if (isAudio) icon = "🎙️";
+                    if (isOCR) icon = "📷";
                     
                     notesEl.innerHTML += `
                         <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center justify-between group ${isActive}">
-                            <span class="truncate">${icon} ${item.content.replace("🎙️ Záznam:", "").trim()}</span>
+                            <span class="truncate">${icon} ${item.content.replace("🎙️ Záznam:", "").replace("📷 OCR Skener:", "").trim()}</span>
                             <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-1 transition">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
@@ -155,7 +161,7 @@
             }
         }
 
-        // ---------- AUDIO PŘEPIS (JEDNODUCHÝ PŘEPIS PO DOKONČENÍ) ----------
+        // ---------- AUDIO PŘEPIS ----------
         let mediaRecorder;
         let audioChunks = [];
         let recordingStream = null;
@@ -234,7 +240,6 @@
             }, 500);
         }
 
-        // Zastaví rozběhnutý mikrofon při opuštění zobrazení nahrávání
         function resetRecordingState() {
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
                 mediaRecorder.stop();
@@ -244,6 +249,30 @@
             }
         }
         // ---------- KONEC AUDIO LOGIKY ----------
+
+        // ---------- OCR LOGIKA (SKEN FOTEK) ----------
+        async function uploadImageForOCR(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            
+            const statusEl = document.getElementById('ocr-status');
+            if (statusEl) statusEl.classList.remove('hidden');
+            
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+                if (res.ok) {
+                    const data = await res.json();
+                    fetchAll();
+                    openItem(data.id);
+                }
+            } catch (err) {
+                alert("Chyba při zpracování obrázku přes OCR.");
+            }
+        }
+        // ---------- KONEC OCR LOGIKY ----------
 
 
         function openItem(id) {
@@ -274,14 +303,14 @@
                             </div>
                         </div>
                         <div class="flex-1 bg-white rounded-2xl flex items-center justify-center p-4 overflow-hidden border border-slate-800 shadow-2xl">
-                            <img src="${item.content}" class="max-w-full max-h-full object-contain" />
+                            <img src="${item.content}" class="max-h-full object-contain" />
                         </div>
                     </div>`;
             } else if (item.type === 'text') {
                 container.innerHTML = `
                     <div class="w-full h-full flex flex-col space-y-4">
                         <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                            <span class="text-xs text-pink-400 font-bold uppercase">Textová poznámka / Přepis</span>
+                            <span class="text-xs text-pink-400 font-bold uppercase">Textová poznámka / Přepis / OCR</span>
                             <div class="flex items-center gap-3">
                                 <span class="text-xs text-slate-500">${new Date(item.created_at).toLocaleString('cs-CZ')}</span>
                                 <button onclick="deleteItem('${item.id}')" class="text-slate-500 hover:text-red-400 p-1 transition" title="Smazat"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -349,6 +378,22 @@
                         </div>
                     </div>`;
                 initCanvas();
+            } else if (type === 'ocr') {
+                container.innerHTML = `
+                    <div class="w-full h-full flex flex-col space-y-4">
+                        <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2">
+                            <i data-lucide="camera" class="w-5 h-5 text-pink-500"></i> Skenování Textu z Fotky (OCR)
+                        </h2>
+                        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center border-dashed border-2 border-slate-700 hover:border-pink-500/50 transition cursor-pointer" onclick="document.getElementById('ocr-file-input').click()">
+                            <i data-lucide="upload-cloud" class="w-16 h-16 text-slate-500 mb-4"></i>
+                            <p class="text-base font-semibold text-slate-200">Klikni sem pro výběr fotky nebo skenu</p>
+                            <p class="text-xs text-slate-500 mt-1">Podporuje PNG, JPG, JPEG (tištěný i psaný text)</p>
+                            <input type="file" id="ocr-file-input" accept="image/*" class="hidden" onchange="uploadImageForOCR(this)" />
+                        </div>
+                        <div id="ocr-status" class="hidden text-center text-pink-400 animate-pulse font-medium">
+                            Probíhá čtení textu z obrázku přes Tesseract OCR...
+                        </div>
+                    </div>`;
             }
             lucide.createIcons();
         }

@@ -45,6 +45,9 @@ func main() {
 	// Endpoint pro nahrání zvuku z mikrofonu a jeho AI přepis
 	http.HandleFunc("/api/upload-audio-chunk", handlers.UploadAudioHandler)
 
+	// Endpoint pro nahrání fotky a OCR skenování (MUSÍ BÝT PŘED SPŮŠTĚNÍM SERVERU)
+	http.HandleFunc("/api/upload-image", handlers.UploadImageHandler)
+
 	// KROK 4: Spuštění HTTP webového serveru
 	fmt.Println("🚀 Webový server běží na http://localhost:8080 ...")
 	log.Fatal(http.ListenAndServe(":8080", nil))

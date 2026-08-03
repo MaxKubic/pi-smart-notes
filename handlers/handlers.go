@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"pi-smart-notes/backend/db"
+	"pi-smart-notes/backend/ocr"
 	"pi-smart-notes/backend/whisper"
 )
 
@@ -86,7 +88,7 @@ func DeleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// UploadAudioHandler přijme nahraný zvuk z microfonu, pošle ho do Whisperu a uloží výsledek
+// UploadAudioHandler přijme nahraný zvuk z mikrofónu, pošle ho do Whisperu a uloží výsledek
 func UploadAudioHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Tato metoda není povolená", http.StatusMethodNotAllowed)
@@ -101,8 +103,13 @@ func UploadAudioHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// 1. Zpřevodujeme zvuk na text přes AI modul Whisper
-	transcribedText, _ := whisper.TranscribeAudio(file)
+	// 1. Převod zvuku na text přes AI modul Whisper
+	transcribedText, err := whisper.TranscribeAudio(file)
+	if err != nil {
+		fmt.Println("❌ Chyba Whisperu:", err)
+		http.Error(w, "Chyba při přepisu zvuku: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// 2. Výsledný text uložíme jako novou poznámku v databázi
 	fullContent := "🎙️ Záznam:\n" + transcribedText
@@ -113,6 +120,41 @@ func UploadAudioHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Pošleme hotovou novou poznámku zpět do prohlížeče
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(newNote)
+}
+
+// UploadImageHandler přijme fotku/sken, prožene ji přes Tesseract OCR a uloží text jako poznámku
+func UploadImageHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Metoda není povolená", http.StatusMethodNotAllowed)
+		return
+	}
+
+	file, _, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "Chyba při čtení obrázku", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// 1. Získání textu z obrázku přes Tesseract OCR
+	extractedText, err := ocr.ProcessImageToText(file)
+	if err != nil {
+		fmt.Println("❌ Chyba OCR:", err)
+		http.Error(w, "Chyba při zpracování OCR: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Uložení výsledku do databáze
+	fullContent := "📷 OCR Skener:\n" + extractedText
+	newNote, err := db.SaveNote(fullContent, "text")
+	if err != nil {
+		http.Error(w, "Chyba při ukládání poznámky do DB", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Odeslání nové poznámky na frontend
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(newNote)
 }
