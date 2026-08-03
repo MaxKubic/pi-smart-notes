@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -139,7 +143,6 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// NOVOST: Mazání položky z databáze (DELETE /api/notes/ID)
 func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 4 {
@@ -155,6 +158,88 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// HANDLER PRO CHUNKOVANÝ STREAM AUDIO PŘEPISU
+func uploadAudioChunkHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Metoda není povolená", http.StatusMethodNotAllowed)
+		return
+	}
+
+	noteID := r.FormValue("note_id")
+
+	file, _, err := r.FormFile("audio")
+	if err != nil {
+		http.Error(w, "Chyba při čtení zvuku", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// 1. Uložíme dočasný WebM soubor z prohlížeče
+	tempWebmPath := fmt.Sprintf("./temp_%d.webm", time.Now().UnixNano())
+	out, err := os.Create(tempWebmPath)
+	if err != nil {
+		http.Error(w, "Chyba při uložení zvuku", http.StatusInternalServerError)
+		return
+	}
+	io.Copy(out, file)
+	out.Close()
+
+	// 2. Převod na 16kHz WAV pro Whisper pomocí FFmpeg
+	wavAudioPath := fmt.Sprintf("./temp_%d.wav", time.Now().UnixNano())
+	ffmpegCmd := exec.Command("ffmpeg", "-i", tempWebmPath, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wavAudioPath, "-y")
+	ffmpegCmd.Run()
+
+	// 3. Spustíme Whisper CLI s NOVOU CESTOU k binárce
+	cmd := exec.Command("./whisper/build/bin/whisper-cli", "-m", "./whisper/models/ggml-base.bin", "-f", wavAudioPath, "-l", "cs", "-nt")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	transcribedText := ""
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Whisper Error:", stderr.String())
+		transcribedText = fmt.Sprintf(" [Přednáška cca %s]: (Při přepisu došlo k chybě)", time.Now().Format("15:04:05"))
+	} else {
+		transcribedText = " " + strings.TrimSpace(stdout.String())
+	}
+
+	// Úklid dočasných souborů
+	os.Remove(tempWebmPath)
+	os.Remove(wavAudioPath)
+
+	// Pokud ještě poznámka neexistuje, vytvoříme ji
+	if noteID == "" || noteID == "null" {
+		newNote := Note{
+			ID:        uuid.New().String(),
+			Content:   "🎙️ Záznam přednášky / meetingu:\n" + transcribedText,
+			Type:      "text",
+			CreatedAt: time.Now(),
+		}
+		stmt, _ := db.Prepare("INSERT INTO notes(id, content, type, completed, created_at) VALUES(?, ?, ?, ?, ?)")
+		stmt.Exec(newNote.ID, newNote.Content, newNote.Type, false, newNote.CreatedAt)
+		stmt.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(newNote)
+		return
+	}
+
+	// Pokud už poznámka běží, připojíme nový text na konec (APPEND)
+	_, err = db.Exec("UPDATE notes SET content = content || ? WHERE id = ?", transcribedText, noteID)
+	if err != nil {
+		http.Error(w, "Chyba při připojování přepsaného textu", http.StatusInternalServerError)
+		return
+	}
+
+	// Vrátíme aktualizovaný obsah
+	var updatedContent string
+	db.QueryRow("SELECT content FROM notes WHERE id = ?", noteID).Scan(&updatedContent)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"id": noteID, "content": updatedContent})
 }
 
 func main() {
@@ -174,7 +259,6 @@ func main() {
 		}
 	})
 
-	// Endpoint pro úpravy (PUT) a mazání (DELETE) podle ID
 	http.HandleFunc("/api/notes/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPut {
 			updateNoteHandler(w, r)
@@ -185,6 +269,9 @@ func main() {
 		}
 	})
 
-	fmt.Println("🚀 Server s podporou mazání běží na http://localhost:8080 ...")
+	// Registrace endpointu pro živý přepis po blocích
+	http.HandleFunc("/api/upload-audio-chunk", uploadAudioChunkHandler)
+
+	fmt.Println("🚀 Server s živým přepisováním běží na http://localhost:8080 ...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
