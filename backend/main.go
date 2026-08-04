@@ -4,11 +4,23 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	// Importujeme naše vlastní balíčky z projektu
 	"pi-smart-notes/backend/db"
 	"pi-smart-notes/backend/handlers"
 )
+
+// Pomocná funkčka pro nalezení složky static, ať už se spouští odkudkoliv
+func getStaticDir() string {
+	paths := []string{"./backend/static", "./static", "../static"}
+	for _, p := range paths {
+		if info, err := os.Stat(p); err == nil && info.IsDir() {
+			return p
+		}
+	}
+	return "./static" // fallback
+}
 
 func main() {
 	// KROK 1: Inicializace databáze SQLite
@@ -16,7 +28,8 @@ func main() {
 	defer db.DB.Close()
 
 	// KROK 2: Nastavení složky se statickým webem (HTML, CSS, JS)
-	fs := http.FileServer(http.Dir("static"))
+	staticDir := getStaticDir()
+	fs := http.FileServer(http.Dir(staticDir))
 	http.Handle("/", fs)
 
 	// KROK 3: Mapování REST API tras pro komunikaci s frontendem
