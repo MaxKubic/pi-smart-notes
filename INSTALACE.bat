@@ -5,6 +5,8 @@ echo Instaluji Pi Smart Notes (prosim nezavirejte)...
 echo ===================================================
 echo.
 
+cd /d "%~dp0"
+
 :: 1. Kontrola / Instalace Go
 where go >nul 2>nul
 if %errorlevel% neq 0 (
@@ -26,24 +28,26 @@ if %errorlevel% neq 0 (
 )
 
 echo Instaluji FFmpeg a Tesseract OCR...
-choco install ffmpeg tesseract tesseract-lang-ces -y
+choco install ffmpeg tesseract -y
 
 :: 3. Stazeni AI Whisper modelu
 echo Stahuji AI model Whisper (~1.5 GB)...
-if not exist ".\whisper\models" mkdir ".\whisper\models"
-if not exist ".\whisper\models\ggml-medium.bin" (
-    powershell -Command "Invoke-WebRequest -Uri 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin' -OutFile '.\whisper\models\ggml-medium.bin'"
+if not exist ".\backend\whisper\models" mkdir ".\backend\whisper\models"
+if not exist ".\backend\whisper\models\ggml-medium.bin" (
+    powershell -Command "Invoke-WebRequest -Uri 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin' -OutFile '.\backend\whisper\models\ggml-medium.bin'"
 ) else (
     echo Whisper model je jiz stazen.
 )
 
-:: 4. Priprava Go modulu a kompilace
+:: 4. Priprava Go modulu a kompilace v adresari backend
 echo Kompiluji aplikaci...
-if not exist "go.mod" (
-    go mod init pi-smart-notes
-)
+cd backend
+if exist "go.mod" del /f /q go.mod
+if exist "go.sum" del /f /q go.sum
+go mod init pi-smart-notes/backend
 go mod tidy
-go build -o backend/server.exe ./backend/main.go
+go build -o server.exe main.go
+cd ..
 
 echo.
 echo ===================================================
