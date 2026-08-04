@@ -4,27 +4,94 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pi Smart Notes 🍓</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Georgia&family=Inter:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Quill.js Editor (CSS a JS) -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+    <!-- Tailwind & Lucide ikony -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link rel="stylesheet" href="/css/style.css">
+
+    <style>
+        .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: attr(data-value); }
+        
+        .ql-size-8px  { font-size: 8px; }
+        .ql-size-10px { font-size: 10px; }
+        .ql-size-12px { font-size: 12px; }
+        .ql-size-14px { font-size: 14px; }
+        .ql-size-16px { font-size: 16px; }
+        .ql-size-18px { font-size: 18px; }
+        .ql-size-24px { font-size: 24px; }
+        .ql-size-32px { font-size: 32px; }
+        .ql-size-48px { font-size: 48px; }
+        .ql-size-72px { font-size: 72px; }
+
+        .ql-font-roboto { font-family: 'Roboto', sans-serif; }
+        .ql-font-open-sans { font-family: 'Open Sans', sans-serif; }
+        .ql-font-montserrat { font-family: 'Montserrat', sans-serif; }
+        .ql-font-lora { font-family: 'Lora', serif; }
+        .ql-font-georgia { font-family: 'Georgia', serif; }
+        .ql-font-courier { font-family: 'Courier Prime', monospace; }
+        .ql-font-inter { font-family: 'Inter', sans-serif; }
+
+        .paper-editor .ql-toolbar.ql-snow {
+            background-color: #0f172a;
+            border-color: #1e293b !important;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+        .paper-editor .ql-container.ql-snow {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            font-size: 14px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .ql-editor h1, .ql-editor h2, .ql-editor h3 { display: block; }
+        .ql-editor ol, .ql-editor ul { padding-left: 1.5em; }
+    </style>
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen overflow-hidden font-sans">
 
-    <div class="flex h-full">
+    <div class="flex h-full relative">
 
         <!-- LEVÝ PANEL (SIDEBAR) -->
-        <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 flex-shrink-0">
+        <aside id="main-sidebar" class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 flex-shrink-0 transition-all duration-300 ease-in-out relative z-30">
             <div class="space-y-6 overflow-y-auto pr-1">
                 
-                <!-- LOGO A NÁZEV -->
-                <div class="flex items-center gap-3 px-2 py-1">
-                    <div class="w-9 h-9 bg-pink-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-pink-500/20">🍓</div>
-                    <div>
-                        <h1 class="font-bold text-base leading-none text-slate-100">Pi Smart Notes</h1>
-                        <span class="text-[10px] text-pink-400 font-medium">Raspberry Pi OS</span>
+                <!-- LOGO A TLAČÍTKO SCHOVÁNÍ -->
+                <div class="flex items-center justify-between px-2 py-1">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-pink-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-pink-500/20">🍓</div>
+                        <div>
+                            <h1 class="font-bold text-base leading-none text-slate-100">Pi Smart Notes</h1>
+                            <span class="text-[10px] text-pink-400 font-medium">Raspberry Pi OS</span>
+                        </div>
                     </div>
+                    <button onclick="toggleSidebar()" class="text-slate-400 hover:text-pink-400 p-1 rounded-lg hover:bg-slate-800 transition" title="Skrýt panel">
+                        <i data-lucide="panel-left-close" class="w-5 h-5"></i>
+                    </button>
                 </div>
 
-                <!-- SEKCE 1: ZÁZNAMY / PŘEPISY (AUDIO) -->
+                <!-- SEKCE 0: PROJEKTY / PAGES -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-slate-400 px-2">
+                        <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="layout" class="w-4 h-4 text-pink-500"></i> A4 Projekty & Pages</span>
+                        <button onclick="createNew('project_page')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Nový Projekt"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    </div>
+                    <div id="sidebar-projects" class="space-y-1"></div>
+                </div>
+
+                <!-- SEKCE 1: AUDIO -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between text-slate-400 px-2">
                         <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="mic" class="w-4 h-4 text-red-500"></i> Hlasové Záznamy</span>
@@ -35,7 +102,7 @@
                 <!-- SEKCE 2: TO-DO TABLES -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between text-slate-400 px-2">
-                        <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="table" class="w-4 h-4 text-pink-500"></i> To-Do Tabulky</span>
+                        <span class="text-xs font-bold tracking-wider uppercase flex items-center gap-1.5"><i data-lucide="table" class="w-4 h-4 text-pink-500"></i> Custom Tabulky</span>
                         <button onclick="createNew('todo_table')" class="hover:bg-slate-800 p-1 rounded text-slate-300 hover:text-pink-400 transition" title="Nová Tabulka"><i data-lucide="plus" class="w-4 h-4"></i></button>
                     </div>
                     <div id="sidebar-todos" class="space-y-1"></div>
@@ -66,8 +133,12 @@
         </aside>
 
         <!-- PRAVÁ PRACOVNÍ PLOCHA -->
-        <main class="flex-1 bg-slate-950 p-6 overflow-y-auto flex flex-col justify-center items-center relative">
-            <div id="work-container" class="w-full max-w-5xl h-full flex flex-col justify-center items-center">
+        <main class="flex-1 bg-slate-950 p-6 overflow-y-auto flex flex-col justify-center items-center relative w-full h-full">
+            <button id="btn-open-sidebar" onclick="toggleSidebar()" class="hidden absolute top-4 left-4 z-40 bg-slate-900 border border-slate-800 hover:border-pink-500/50 text-slate-300 hover:text-pink-400 p-2 rounded-xl shadow-xl transition flex items-center gap-2 text-xs font-semibold">
+                <i data-lucide="panel-left-open" class="w-4 h-4"></i> Menu
+            </button>
+
+            <div id="work-container" class="w-full h-full flex flex-col justify-center items-center">
                 <div class="text-center text-slate-600 space-y-3">
                     <i data-lucide="layout-dashboard" class="w-16 h-16 mx-auto stroke-1"></i>
                     <p class="text-sm font-medium">Vyber věc z levého menu nebo vytvoř novou kliknutím na <span class="text-pink-500 font-bold">+</span></p>
@@ -77,455 +148,71 @@
 
     </div>
 
-    <script>
-        let allNotes = [];
-        let activeNoteId = null;
-        let currentTableData = { title: "Nová tabulka", rows: [] };
-
-        async function fetchAll() {
-            const res = await fetch('/api/notes');
-            allNotes = await res.json();
-            renderSidebar();
-            lucide.createIcons();
-        }
-
-        function renderSidebar() {
-            const todosEl = document.getElementById('sidebar-todos');
-            const notesEl = document.getElementById('sidebar-notes');
-            const sketchesEl = document.getElementById('sidebar-sketches');
-
-            todosEl.innerHTML = '';
-            notesEl.innerHTML = '';
-            sketchesEl.innerHTML = '';
-
-            allNotes.forEach(item => {
-                const isActive = item.id === activeNoteId ? 'bg-slate-800 text-pink-400 border-l-2 border-pink-500' : 'text-slate-300 hover:bg-slate-800/60';
-
-                if (item.type === 'todo_table') {
-                    let title = "Tabulka bez názvu";
-                    try {
-                        const parsed = JSON.parse(item.content);
-                        if (parsed.title) title = parsed.title;
-                    } catch(e) {}
-
-                    todosEl.innerHTML += `
-                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center justify-between group ${isActive}">
-                            <span class="truncate">📊 ${title}</span>
-                            <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-1 transition">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            </button>
-                        </div>`;
-                } else if (item.type === 'text') {
-                    const isAudio = item.content.includes("🎙️");
-                    const isOCR = item.content.includes("📷");
-                    let icon = "📝";
-                    if (isAudio) icon = "🎙️";
-                    if (isOCR) icon = "📷";
-                    
-                    notesEl.innerHTML += `
-                        <div onclick="openItem('${item.id}')" class="p-2 rounded-lg cursor-pointer text-xs font-medium transition truncate flex items-center justify-between group ${isActive}">
-                            <span class="truncate">${icon} ${item.content.replace("🎙️ Záznam:", "").replace("📷 OCR Skener:", "").trim()}</span>
-                            <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-1 transition">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            </button>
-                        </div>`;
-                } else if (item.type === 'drawing') {
-                    sketchesEl.innerHTML += `
-                        <div onclick="openItem('${item.id}')" class="border border-slate-800 rounded-lg overflow-hidden cursor-pointer hover:border-pink-500/50 transition bg-white/5 h-20 flex items-center justify-center relative group ${isActive}">
-                            <img src="${item.content}" class="max-h-full object-contain" />
-                            <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-slate-900/80 text-slate-400 hover:text-red-400 p-1 rounded transition">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            </button>
-                        </div>`;
-                }
-            });
-        }
-
-        async function deleteItem(id) {
-            if (!confirm("Opravdu chceš tuto položku smazat?")) return;
-            try {
-                const res = await fetch('/api/notes/' + id, { method: 'DELETE' });
-                if (res.ok) {
-                    if (activeNoteId === id) {
-                        activeNoteId = null;
-                        document.getElementById('work-container').innerHTML = `
-                            <div class="text-center text-slate-600 space-y-3">
-                                <i data-lucide="layout-dashboard" class="w-16 h-16 mx-auto stroke-1"></i>
-                                <p class="text-sm font-medium">Položka byla smazána.</p>
-                            </div>`;
-                    }
-                    fetchAll();
-                }
-            } catch (err) {
-                console.error("Chyba:", err);
-            }
-        }
-
-        // ---------- AUDIO PŘEPIS ----------
-        let mediaRecorder;
-        let audioChunks = [];
-        let recordingStream = null;
-
-        async function startRecording() {
-            try {
-                recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioChunks = [];
-
-                document.getElementById('recording-dot').classList.remove('hidden');
-                document.getElementById('btn-start-record').classList.add('hidden');
-                document.getElementById('btn-stop-record').classList.remove('hidden');
-                document.getElementById('live-transcript-box').innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center text-red-400 animate-pulse space-y-2">
-                        <i data-lucide="mic" class="w-12 h-12"></i>
-                        <p class="font-bold">Probíhá nahrávání zvuku...</p>
-                        <p class="text-xs text-slate-400">Až domluvíš, klikni na "Ukončit záznam" pro převod na text.</p>
-                    </div>`;
-                lucide.createIcons();
-
-                mediaRecorder = new MediaRecorder(recordingStream, { mimeType: 'audio/webm' });
-
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) audioChunks.push(e.data);
-                };
-
-                mediaRecorder.start();
-            } catch (err) {
-                alert("Nepodařilo se připojit mikrofon. Zkontroluj oprávnění prohlížeče.");
-            }
-        }
-
-        async function stopRecording() {
-            document.getElementById('recording-dot').classList.add('hidden');
-            document.getElementById('btn-start-record').classList.remove('hidden');
-            document.getElementById('btn-stop-record').classList.add('hidden');
-
-            const box = document.getElementById('live-transcript-box');
-            if (box) {
-                box.innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center text-pink-400 animate-pulse space-y-2">
-                        <i data-lucide="loader-2" class="w-12 h-12 animate-spin"></i>
-                        <p class="font-bold">Probíhá převod řeči na text přes Whisper AI...</p>
-                        <p class="text-xs text-slate-400">Trvá to jen chvilku podle délky nahrávky.</p>
-                    </div>`;
-                lucide.createIcons();
-            }
-
-            if (mediaRecorder && mediaRecorder.state !== "inactive") {
-                mediaRecorder.stop();
-            }
-
-            if (recordingStream) {
-                recordingStream.getTracks().forEach(track => track.stop());
-            }
-
-            setTimeout(async () => {
-                const fullAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const formData = new FormData();
-                formData.append('audio', fullAudioBlob, 'recording.webm');
-
-                try {
-                    const res = await fetch('/api/upload-audio-chunk', { method: 'POST', body: formData });
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (box && data.content) {
-                            box.innerHTML = data.content.replace(/\n/g, '<br><br>');
-                            box.scrollTop = box.scrollHeight;
-                        }
-                        fetchAll();
-                    }
-                } catch (err) {
-                    console.error("Chyba při odesílání audia:", err);
-                    if (box) box.innerText = "Při zpracování zvuku došlo k chybě.";
-                }
-            }, 500);
-        }
-
-        function resetRecordingState() {
-            if (mediaRecorder && mediaRecorder.state !== "inactive") {
-                mediaRecorder.stop();
-            }
-            if (recordingStream) {
-                recordingStream.getTracks().forEach(track => track.stop());
-            }
-        }
-        // ---------- KONEC AUDIO LOGIKY ----------
-
-        // ---------- OCR LOGIKA (SKEN FOTEK) ----------
-        async function uploadImageForOCR(input) {
-            if (!input.files || !input.files[0]) return;
-            const file = input.files[0];
+    <!-- MODAL OKNO PRO PŘIDÁNÍ SLOUPCE V TABULCE -->
+    <div id="modal-add-column" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <i data-lucide="columns-3" class="w-5 h-5 text-pink-500"></i> Přidat Nový Sloupec
+            </h3>
             
-            const statusEl = document.getElementById('ocr-status');
-            if (statusEl) statusEl.classList.remove('hidden');
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Název sloupce</label>
+                    <input type="text" id="new-col-name" placeholder="např. Priorita, Cena, Splněno..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-pink-500" />
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Datový Typ</label>
+                    <select id="new-col-type" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-pink-500">
+                        <option value="text">🔤 Text</option>
+                        <option value="checkbox">☑️ Zaškrtávátko (Checkbox)</option>
+                        <option value="date">📅 Datum</option>
+                        <option value="number">🔢 Číslo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeAddColumnModal()" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition">Zrušit</button>
+                <button onclick="confirmAddColumn()" class="bg-pink-600 hover:bg-pink-500 px-4 py-2 rounded-xl text-xs font-semibold text-white transition">Přidat Sloupec</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OKNO PRO VÝBĚR BLOKŮ DO A4 STRÁNKY -->
+    <div id="modal-add-widget" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl">
+            <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-5 h-5 text-pink-500"></i> Vložit prvek na A4 Stránku
+            </h3>
+
+            <!-- RYCHLÁ TLAČÍTKA PRO PROJEKTOVOU VYTVOŘENÍ -->
+            <div class="grid grid-cols-3 gap-2 pb-2 border-b border-slate-800">
+                <button id="btn-create-inline-text" class="bg-pink-600/10 hover:bg-pink-600/20 border border-pink-500/30 text-pink-400 font-semibold py-2 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> + Text
+                </button>
+                <button id="btn-create-inline-table" class="bg-pink-600/10 hover:bg-pink-600/20 border border-pink-500/30 text-pink-400 font-semibold py-2 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="table" class="w-4 h-4"></i> + Tabulka
+                </button>
+                <button id="btn-create-inline-drawing" class="bg-pink-600/10 hover:bg-pink-600/20 border border-pink-500/30 text-pink-400 font-semibold py-2 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="palette" class="w-4 h-4"></i> + Kresba
+                </button>
+            </div>
             
-            const formData = new FormData();
-            formData.append('image', file);
+            <p class="text-xs text-slate-400">Nebo vyber existující položku ze seznamu:</p>
+            
+            <div id="widget-select-list" class="max-h-60 overflow-y-auto space-y-2 pr-1 border border-slate-800 rounded-xl p-2 bg-slate-950">
+            </div>
 
-            try {
-                const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
-                if (res.ok) {
-                    const data = await res.json();
-                    fetchAll();
-                    openItem(data.id);
-                }
-            } catch (err) {
-                alert("Chyba při zpracování obrázku přes OCR.");
-            }
-        }
-        // ---------- KONEC OCR LOGIKY ----------
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeAddWidgetModal()" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition">Zavřít</button>
+            </div>
+        </div>
+    </div>
 
-
-        function openItem(id) {
-            resetRecordingState();
-            activeNoteId = id;
-            renderSidebar();
-            const item = allNotes.find(n => n.id === id);
-            const container = document.getElementById('work-container');
-            if (!item) return;
-
-            if (item.type === 'todo_table') {
-                try {
-                    const parsed = JSON.parse(item.content);
-                    if (Array.isArray(parsed)) currentTableData = { title: "Uložená tabulka", rows: parsed };
-                    else currentTableData = parsed;
-                } catch(e) {
-                    currentTableData = { title: "Chybná tabulka", rows: [] };
-                }
-                renderTableView(container, item.id);
-            } else if (item.type === 'drawing') {
-                container.innerHTML = `
-                    <div class="w-full h-full flex flex-col space-y-4">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                            <span class="text-xs text-pink-400 font-bold uppercase">Detail Kresby</span>
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs text-slate-500">${new Date(item.created_at).toLocaleString('cs-CZ')}</span>
-                                <button onclick="deleteItem('${item.id}')" class="text-slate-500 hover:text-red-400 p-1 transition" title="Smazat"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            </div>
-                        </div>
-                        <div class="flex-1 bg-white rounded-2xl flex items-center justify-center p-4 overflow-hidden border border-slate-800 shadow-2xl">
-                            <img src="${item.content}" class="max-h-full object-contain" />
-                        </div>
-                    </div>`;
-            } else if (item.type === 'text') {
-                container.innerHTML = `
-                    <div class="w-full h-full flex flex-col space-y-4">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                            <span class="text-xs text-pink-400 font-bold uppercase">Textová poznámka / Přepis / OCR</span>
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs text-slate-500">${new Date(item.created_at).toLocaleString('cs-CZ')}</span>
-                                <button onclick="deleteItem('${item.id}')" class="text-slate-500 hover:text-red-400 p-1 transition" title="Smazat"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            </div>
-                        </div>
-                        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-200 text-lg leading-relaxed whitespace-pre-wrap overflow-y-auto">
-                            ${item.content}
-                        </div>
-                    </div>`;
-            }
-            lucide.createIcons();
-        }
-
-        function createNew(type) {
-            resetRecordingState();
-            activeNoteId = null;
-            renderSidebar();
-            const container = document.getElementById('work-container');
-
-            if (type === 'audio') {
-                container.innerHTML = `
-                    <div class="w-full h-full flex flex-col space-y-4">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                            <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2">
-                                <span id="recording-dot" class="w-3 h-3 bg-red-500 rounded-full animate-pulse hidden shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
-                                Hlasový Záznam (Přepis po ukončení)
-                            </h2>
-                            <div class="flex gap-2">
-                                <button id="btn-start-record" onclick="startRecording()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4"></i> Spustit záznam</button>
-                                <button id="btn-stop-record" onclick="stopRecording()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 hidden"><i data-lucide="square" class="w-4 h-4"></i> Ukončit záznam</button>
-                            </div>
-                        </div>
-                        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-200 text-lg leading-relaxed whitespace-pre-wrap overflow-y-auto shadow-inner" id="live-transcript-box">
-                            <div class="h-full flex flex-col items-center justify-center text-slate-600 space-y-2">
-                                <i data-lucide="mic" class="w-12 h-12"></i>
-                                <p>Klikni na <strong class="text-red-400">Spustit záznam</strong> pro zahájení nahrávání.</p>
-                                <p class="text-sm text-slate-500">Až domluvíš, klikni na Ukončit. Zvuk se pošle do Whisper AI a vygeneruje se text.</p>
-                            </div>
-                        </div>
-                    </div>`;
-            } else if (type === 'todo_table') {
-                currentTableData = { title: "Nová tabulka", rows: [{ title: '', done: false, date: '', tag: '' }] };
-                renderTableView(container, null);
-            } else if (type === 'text') {
-                container.innerHTML = `
-                    <div class="w-full h-full flex flex-col space-y-4">
-                        <h2 class="text-lg font-bold text-slate-200">Nová Textová Poznámka</h2>
-                        <textarea id="new-text" class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-slate-100 focus:outline-none focus:border-pink-500 text-base" placeholder="Zde začni psát..."></textarea>
-                        <div class="flex justify-end">
-                            <button onclick="saveNote('text')" class="bg-pink-600 hover:bg-pink-500 font-semibold px-6 py-2.5 rounded-xl text-sm transition">Uložit poznámku</button>
-                        </div>
-                    </div>`;
-            } else if (type === 'drawing') {
-                container.innerHTML = `
-                    <div class="w-full h-full flex flex-col space-y-4">
-                        <div class="flex justify-between items-center">
-                            <h2 class="text-lg font-bold text-slate-200">Kreslící Plátno</h2>
-                            <button onclick="clearCanvas()" class="text-xs text-slate-400 hover:text-red-400">Vymazat</button>
-                        </div>
-                        <div class="flex-1 bg-white rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
-                            <canvas id="paint-canvas" class="w-full h-full touch-none cursor-crosshair"></canvas>
-                        </div>
-                        <div class="flex justify-end">
-                            <button onclick="saveDrawing()" class="bg-pink-600 hover:bg-pink-500 font-semibold px-6 py-2.5 rounded-xl text-sm transition">Uložit kresbu</button>
-                        </div>
-                    </div>`;
-                initCanvas();
-            } else if (type === 'ocr') {
-                container.innerHTML = `
-                    <div class="w-full h-full flex flex-col space-y-4">
-                        <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2">
-                            <i data-lucide="camera" class="w-5 h-5 text-pink-500"></i> Skenování Textu z Fotky (OCR)
-                        </h2>
-                        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center border-dashed border-2 border-slate-700 hover:border-pink-500/50 transition cursor-pointer" onclick="document.getElementById('ocr-file-input').click()">
-                            <i data-lucide="upload-cloud" class="w-16 h-16 text-slate-500 mb-4"></i>
-                            <p class="text-base font-semibold text-slate-200">Klikni sem pro výběr fotky nebo skenu</p>
-                            <p class="text-xs text-slate-500 mt-1">Podporuje PNG, JPG, JPEG (tištěný i psaný text)</p>
-                            <input type="file" id="ocr-file-input" accept="image/*" class="hidden" onchange="uploadImageForOCR(this)" />
-                        </div>
-                        <div id="ocr-status" class="hidden text-center text-pink-400 animate-pulse font-medium">
-                            Probíhá čtení textu z obrázku přes Tesseract OCR...
-                        </div>
-                    </div>`;
-            }
-            lucide.createIcons();
-        }
-
-        function renderTableView(container, tableId = null) {
-            let rowsHtml = currentTableData.rows.map((row, idx) => `
-                <tr class="table-row-item border-b border-slate-800 hover:bg-slate-900/50">
-                    <td class="p-3 text-center">
-                        <input type="checkbox" ${row.done ? 'checked' : ''} class="row-done w-4 h-4 accent-pink-500 rounded cursor-pointer" />
-                    </td>
-                    <td class="p-3">
-                        <input type="text" value="${row.title || ''}" placeholder="Název úkolu..." class="row-title w-full bg-transparent text-sm focus:outline-none focus:border-b focus:border-pink-500 ${row.done ? 'line-through text-slate-500' : 'text-slate-200'}" />
-                    </td>
-                    <td class="p-3">
-                        <input type="date" value="${row.date || ''}" class="row-date bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-pink-500" />
-                    </td>
-                    <td class="p-3">
-                        <input type="text" value="${row.tag || ''}" placeholder="Popisek / Tag" class="row-tag w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-pink-500" />
-                    </td>
-                    <td class="p-3 text-center">
-                        <button onclick="removeRow(${idx}, ${tableId ? `'${tableId}'` : 'null'})" class="text-slate-600 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                    </td>
-                </tr>
-            `).join('');
-
-            const isEditing = tableId !== null;
-
-            container.innerHTML = `
-                <div class="w-full h-full flex flex-col space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <div class="flex items-center gap-2 flex-1 max-w-md">
-                            <i data-lucide="table" class="text-pink-500 w-5 h-5 flex-shrink-0"></i>
-                            <input type="text" id="table-title-input" value="${currentTableData.title || ''}" placeholder="Pojmenuj tabulku..." class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-base font-bold text-slate-100 focus:outline-none focus:border-pink-500 w-full" />
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="addRow(${isEditing ? `'${tableId}'` : 'null'})" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Přidat řádek</button>
-                            ${!isEditing 
-                                ? `<button onclick="saveNewTable()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition">Uložit Novou Tabulku</button>` 
-                                : `<button onclick="updateExistingTable('${tableId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit Změny</button>`
-                            }
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-x-auto border border-slate-800 rounded-2xl bg-slate-900/40">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="border-b border-slate-800 bg-slate-900 text-slate-400 text-xs font-semibold uppercase">
-                                    <th class="p-3 w-12 text-center">Stav</th>
-                                    <th class="p-3">Úkol / Popis</th>
-                                    <th class="p-3 w-40">Termín</th>
-                                    <th class="p-3 w-44">Kategorie / Tag</th>
-                                    <th class="p-3 w-12 text-center"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${rowsHtml.length > 0 ? rowsHtml : `<tr><td colspan="5" class="p-8 text-center text-slate-600 text-sm">Žádné úkoly.</td></tr>`}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>`;
-            lucide.createIcons();
-        }
-
-        function addRow(tableId = null) { collectTableDataFromDOM(); currentTableData.rows.push({ title: '', done: false, date: '', tag: '' }); renderTableView(document.getElementById('work-container'), tableId); }
-        function removeRow(idx, tableId = null) { collectTableDataFromDOM(); currentTableData.rows.splice(idx, 1); renderTableView(document.getElementById('work-container'), tableId); }
-        
-        function collectTableDataFromDOM() {
-            const titleInput = document.getElementById('table-title-input');
-            if (titleInput && titleInput.value.trim()) currentTableData.title = titleInput.value.trim();
-            const rowElements = document.querySelectorAll('.table-row-item');
-            const updatedRows = [];
-            rowElements.forEach(tr => {
-                updatedRows.push({
-                    done: tr.querySelector('.row-done') ? tr.querySelector('.row-done').checked : false,
-                    title: tr.querySelector('.row-title') ? tr.querySelector('.row-title').value : '',
-                    date: tr.querySelector('.row-date') ? tr.querySelector('.row-date').value : '',
-                    tag: tr.querySelector('.row-tag') ? tr.querySelector('.row-tag').value : ''
-                });
-            });
-            currentTableData.rows = updatedRows;
-        }
-
-        async function saveNewTable() {
-            collectTableDataFromDOM();
-            if (!currentTableData.rows.length) return;
-            await fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: JSON.stringify(currentTableData), type: 'todo_table' }) });
-            fetchAll();
-            document.getElementById('work-container').innerHTML = `<div class="text-center text-slate-500 space-y-2"><i data-lucide="check-circle-2" class="w-12 h-12 text-emerald-500 mx-auto"></i><p>Uloženo!</p></div>`;
-            lucide.createIcons();
-        }
-
-        async function updateExistingTable(tableId) {
-            collectTableDataFromDOM();
-            await fetch('/api/notes/' + tableId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: JSON.stringify(currentTableData) }) });
-            fetchAll();
-            openItem(tableId);
-        }
-
-        async function saveNote(type) {
-            let content = document.getElementById('new-text').value;
-            if (!content.trim()) return;
-            await fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, type }) });
-            fetchAll();
-            document.getElementById('work-container').innerHTML = `<div class="text-center text-slate-600"><p>Uloženo!</p></div>`;
-        }
-
-        let canvas, ctx, painting = false;
-        function initCanvas() {
-            canvas = document.getElementById('paint-canvas');
-            ctx = canvas.getContext('2d');
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
-            ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000000';
-            const start = (e) => { painting = true; draw(e); };
-            const stop = () => { painting = false; ctx.beginPath(); };
-            canvas.addEventListener('mousedown', start); canvas.addEventListener('mouseup', stop); canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('touchstart', start); canvas.addEventListener('touchend', stop); canvas.addEventListener('touchmove', draw);
-        }
-        function draw(e) {
-            if (!painting) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-            const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-            ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
-        }
-        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
-        async function saveDrawing() {
-            await fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: canvas.toDataURL(), type: 'drawing' }) });
-            fetchAll();
-            document.getElementById('work-container').innerHTML = `<div class="text-center text-slate-600"><p>Kresba uložena!</p></div>`;
-        }
-
-        fetchAll();
-    </script>
+    <!-- SKRIPTY PROPOJENÉ Z EXTERNÍCH SOUBORŮ -->
+    <script src="/js/tables.js"></script>
+    <script src="/js/canvas.js"></script>
+    <script src="/js/media.js"></script>
+    <script src="/js/app.js"></script>
 </body>
 </html>
