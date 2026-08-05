@@ -1,11 +1,14 @@
 @echo off
-chcp 65001 > nul
-title Pi Smart Notes
-echo 🚀 Spouštím Pi Smart Notes...
+title PI Smart Notes
+echo Spoustim PI Smart Notes...
 
-:: Spustí zkompilovaný server v novém okně přímo z kořenové složky
-start "Pi Smart Notes Server" ".\backend\server.exe"
+:: Spustí tvůj zkompilovaný backend/aplikaci (uprav názvy podle potřeby)
+start "" "app.exe"
 
-:: Počká 1 sekundu na nastartování serveru a otevře prohlížeč
-timeout /t 1 > nul
+:: Počká 2 sekundy, než se server nastartuje
+timeout /t 2 /nobreak >nul
+
+:: Otevře aplikaci v prohlížeči
 start http://localhost:8080
+
+exit
